@@ -8,13 +8,11 @@ use libc::pid_t;
 use log::{debug, info, warn};
 
 use nix::{
-    self,
     sched::{setns, CloneFlags},
     sys::ptrace,
     sys::wait,
 };
 use std::collections::HashMap;
-use std::convert::TryInto;
 use std::fs::File;
 use std::io::Read;
 use std::os::unix::io::AsRawFd;
@@ -42,8 +40,8 @@ pub struct Thread {
 }
 
 impl Process {
-    pub fn new(pid: Pid) -> Result<Process, Error> {
-        Ok(Process { pid })
+    pub fn new(pid: Pid) -> Result<Self, Error> {
+        Ok(Self { pid })
     }
 
     pub fn exe(&self) -> Result<String, Error> {
@@ -57,12 +55,12 @@ impl Process {
     }
 
     pub fn cmdline(&self) -> Result<Vec<String>, Error> {
-        let mut f = std::fs::File::open(format!("/proc/{}/cmdline", self.pid))?;
+        let mut f = File::open(format!("/proc/{}/cmdline", self.pid))?;
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer)?;
 
         let mut ret = Vec::new();
-        for arg in buffer.split(|b| *b == 0).filter(|b| b.len() > 0) {
+        for arg in buffer.split(|b| *b == 0).filter(|b| !b.is_empty()) {
             ret.push(
                 String::from_utf8(arg.to_vec())
                     .map_err(|e| Error::Other(format!("Failed to convert utf8 {}", e)))?,
@@ -104,7 +102,7 @@ impl Process {
         }
 
         if all_locks_failed {
-            return Err(Error::Other(format!("All threads failed to lock")));
+            return Err(Error::Other("All threads failed to lock".to_string()));
         }
 
         Ok(Lock { locks })
@@ -138,12 +136,12 @@ impl Process {
 
     #[cfg(use_libunwind)]
     pub fn unwinder(&self) -> Result<Unwinder, Error> {
-        Ok(Unwinder::new()?)
+        Unwinder::new()
     }
 
     #[cfg(use_libunwind)]
     pub fn symbolicator(&self) -> Result<Symbolicator, Error> {
-        Ok(Symbolicator::new(self.pid)?)
+        Symbolicator::new(self.pid)
     }
 }
 
@@ -155,14 +153,14 @@ impl super::ProcessMemory for Process {
 }
 
 impl Thread {
-    pub fn new(threadid: i32) -> Result<Thread, Error> {
-        Ok(Thread {
+    pub fn new(threadid: i32) -> Result<Self, Error> {
+        Ok(Self {
             tid: nix::unistd::Pid::from_raw(threadid),
         })
     }
 
     pub fn lock(&self) -> Result<ThreadLock, Error> {
-        Ok(ThreadLock::new(self.tid)?)
+        ThreadLock::new(self.tid)
     }
 
     pub fn id(&self) -> Result<Tid, Error> {
@@ -172,7 +170,7 @@ impl Thread {
     pub fn active(&self) -> Result<bool, Error> {
         let mut file = File::open(format!("/proc/{}/stat", self.tid))?;
         let mut buf = [0u8; 512];
-        file.read(&mut buf)?;
+        let _ = file.read(&mut buf)?;
         match get_active_status(&buf) {
             Some(stat) => Ok(stat == b'R'),
             None => Err(Error::Other(format!(
@@ -214,7 +212,7 @@ pub struct ThreadLock {
 }
 
 impl ThreadLock {
-    fn new(tid: nix::unistd::Pid) -> Result<ThreadLock, Error> {
+    fn new(tid: nix::unistd::Pid) -> Result<Self, Error> {
         // This attaches to the process w/o pausing it.
         ptrace::seize(
             tid,
@@ -268,7 +266,7 @@ impl ThreadLock {
         }
 
         debug!("attached to thread {}", tid);
-        Ok(ThreadLock { tid })
+        Ok(Self { tid })
     }
 }
 
@@ -286,7 +284,7 @@ pub struct Namespace {
 }
 
 impl Namespace {
-    pub fn new(pid: Pid) -> Result<Namespace, Error> {
+    pub fn new(pid: Pid) -> Result<Self, Error> {
         let target_ns_filename = format!("/proc/{}/ns/mnt", pid);
         let self_mnt = std::fs::read_link("/proc/self/ns/mnt")?;
         let target_mnt = std::fs::read_link(&target_ns_filename)?;
@@ -296,12 +294,12 @@ impl Namespace {
             // need to open this here, gets trickier after changing the namespace
             let self_ns = File::open("/proc/self/ns/mnt")?;
             setns(target.as_raw_fd(), CloneFlags::from_bits_truncate(0))?;
-            Ok(Namespace {
+            Ok(Self {
                 ns_file: Some(self_ns),
             })
         } else {
             info!("Target process is running in same namespace - not changing");
-            Ok(Namespace { ns_file: None })
+            Ok(Self { ns_file: None })
         }
     }
 
@@ -334,7 +332,7 @@ fn get_active_status(stat: &[u8]) -> Option<u8> {
 fn get_parent_pid(pid: Pid) -> Result<Pid, Error> {
     let mut file = File::open(format!("/proc/{}/stat", pid))?;
     let mut buf = [0u8; 512];
-    file.read(&mut buf)?;
+    let _ = file.read(&mut buf)?;
     get_ppid_status(&buf).ok_or_else(|| Error::Other(format!("Failed to parse /proc/{}/stat", pid)))
 }
 

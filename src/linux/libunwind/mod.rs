@@ -1,5 +1,4 @@
 use libc::{c_char, c_int, c_void, pid_t, size_t};
-use std;
 
 #[cfg_attr(target_arch = "x86_64", path = "bindings_x86_64.rs")]
 #[cfg_attr(target_arch = "arm", path = "bindings_arm.rs")]
@@ -34,12 +33,12 @@ pub struct Unwinder {
 }
 
 impl Unwinder {
-    pub fn new() -> Result<Unwinder> {
+    pub fn new() -> Result<Self> {
         unsafe {
             let addr_space = create_addr_space(&_UPT_accessors as *const _ as *mut _, 0);
             // enabling caching provides a modest speedup - but is still much slower than the gimli unwinding
             set_caching_policy(addr_space, unw_caching_policy_t_UNW_CACHE_PER_THREAD);
-            Ok(Unwinder { addr_space })
+            Ok(Self { addr_space })
         }
     }
 
@@ -275,22 +274,22 @@ extern "C" {
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Error::UNW_EUNSPEC => write!(f, "UNW_EUNSPEC: unspecified (general) error"),
-            Error::UNW_ENOMEM => write!(f, "UNW_ENOMEM: out of memoryr"),
-            Error::UNW_EBADREG => write!(f, "UNW_EBADREG: bad register number"),
-            Error::UNW_EREADONLYREG => {
+            Self::UNW_EUNSPEC => write!(f, "UNW_EUNSPEC: unspecified (general) error"),
+            Self::UNW_ENOMEM => write!(f, "UNW_ENOMEM: out of memoryr"),
+            Self::UNW_EBADREG => write!(f, "UNW_EBADREG: bad register number"),
+            Self::UNW_EREADONLYREG => {
                 write!(f, "UNW_EREADONLYREG: attempt to write read-only register ")
             }
-            Error::UNW_ESTOPUNWIND => write!(f, "UNW_ESTOPUNWIND: stop unwinding"),
-            Error::UNW_EINVALIDIP => write!(f, "UNW_EINVALIDIP: invalid IP"),
-            Error::UNW_EBADFRAME => write!(f, "UNW_EBADFRAME: bad frame"),
-            Error::UNW_EINVAL => write!(f, "UNW_EINVAL: unsupported operation or bad value"),
-            Error::UNW_EBADVERSION => {
+            Self::UNW_ESTOPUNWIND => write!(f, "UNW_ESTOPUNWIND: stop unwinding"),
+            Self::UNW_EINVALIDIP => write!(f, "UNW_EINVALIDIP: invalid IP"),
+            Self::UNW_EBADFRAME => write!(f, "UNW_EBADFRAME: bad frame"),
+            Self::UNW_EINVAL => write!(f, "UNW_EINVAL: unsupported operation or bad value"),
+            Self::UNW_EBADVERSION => {
                 write!(f, "UNW_EBADVERSION: unwind info has unsupported version")
             }
-            Error::UNW_ENOINFO => write!(f, "UNW_ENOINFO: no unwind info found"),
+            Self::UNW_ENOINFO => write!(f, "UNW_ENOINFO: no unwind info found"),
         }
     }
 }
@@ -306,20 +305,20 @@ impl std::error::Error for Error {
 }
 
 impl Error {
-    fn from(ret: i32) -> Error {
+    fn from(ret: i32) -> Self {
         // let ret = ret unw_error_t
         match ret as u32 {
-            bindings::unw_error_t_UNW_EUNSPEC => Error::UNW_EUNSPEC,
-            bindings::unw_error_t_UNW_ENOMEM => Error::UNW_ENOMEM,
-            bindings::unw_error_t_UNW_EBADREG => Error::UNW_EBADREG,
-            bindings::unw_error_t_UNW_EREADONLYREG => Error::UNW_EREADONLYREG,
-            bindings::unw_error_t_UNW_ESTOPUNWIND => Error::UNW_ESTOPUNWIND,
-            bindings::unw_error_t_UNW_EINVALIDIP => Error::UNW_EINVALIDIP,
-            bindings::unw_error_t_UNW_EBADFRAME => Error::UNW_EBADFRAME,
-            bindings::unw_error_t_UNW_EINVAL => Error::UNW_EINVAL,
-            bindings::unw_error_t_UNW_EBADVERSION => Error::UNW_EBADVERSION,
-            bindings::unw_error_t_UNW_ENOINFO => Error::UNW_ENOINFO,
-            _ => Error::UNW_EUNSPEC,
+            bindings::unw_error_t_UNW_EUNSPEC => Self::UNW_EUNSPEC,
+            bindings::unw_error_t_UNW_ENOMEM => Self::UNW_ENOMEM,
+            bindings::unw_error_t_UNW_EBADREG => Self::UNW_EBADREG,
+            bindings::unw_error_t_UNW_EREADONLYREG => Self::UNW_EREADONLYREG,
+            bindings::unw_error_t_UNW_ESTOPUNWIND => Self::UNW_ESTOPUNWIND,
+            bindings::unw_error_t_UNW_EINVALIDIP => Self::UNW_EINVALIDIP,
+            bindings::unw_error_t_UNW_EBADFRAME => Self::UNW_EBADFRAME,
+            bindings::unw_error_t_UNW_EINVAL => Self::UNW_EINVAL,
+            bindings::unw_error_t_UNW_EBADVERSION => Self::UNW_EBADVERSION,
+            bindings::unw_error_t_UNW_ENOINFO => Self::UNW_ENOINFO,
+            _ => Self::UNW_EUNSPEC,
         }
     }
 }

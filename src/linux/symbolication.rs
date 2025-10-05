@@ -8,9 +8,8 @@ use memmap2::Mmap;
 
 use crate::{Error, Pid, Process, StackFrame};
 use addr2line::Loader;
-use goblin;
 use goblin::elf::program_header::*;
-use object::{self, Object, ObjectSymbol};
+use object::{Object, ObjectSymbol};
 
 use crate::ProcessMemory;
 
@@ -21,9 +20,9 @@ pub struct Symbolicator {
 }
 
 impl Symbolicator {
-    pub fn new(pid: Pid) -> Result<Symbolicator, Error> {
+    pub fn new(pid: Pid) -> Result<Self, Error> {
         let process = Process::new(pid)?;
-        let mut ret = Symbolicator {
+        let mut ret = Self {
             binaries: BTreeMap::new(),
             process,
             pid,
@@ -95,14 +94,14 @@ impl Symbolicator {
                 m.start(),
                 buffer.len()
             );
-            match goblin::Object::parse(&buffer) {
+            match goblin::Object::parse(buffer) {
                 Ok(goblin::Object::Elf(elf)) => {
                     trace!("filename {} elf {:#?}", filename.display(), elf);
 
                     let program_header = elf
                         .program_headers
                         .iter()
-                        .find(|ref header| header.p_type == PT_LOAD && header.p_flags & PF_X != 0);
+                        .find(|header| header.p_type == PT_LOAD && header.p_flags & PF_X != 0);
 
                     let obj_base = match program_header {
                         Some(hdr) => {
@@ -202,7 +201,7 @@ impl Symbolicator {
 
     fn get_binary(&self, addr: u64) -> Option<&BinaryInfo> {
         match self.binaries.range(addr..).next() {
-            Some((_, binary)) if binary.contains(addr) => Some(&binary),
+            Some((_, binary)) if binary.contains(addr) => Some(binary),
             Some(_) => None,
             _ => None,
         }
@@ -219,7 +218,7 @@ pub struct SymbolData {
 }
 
 impl SymbolData {
-    pub fn new(filename: &str, offset: u64) -> Result<SymbolData, Error> {
+    pub fn new(filename: &str, offset: u64) -> Result<Self, Error> {
         info!("opening {} for symbols", filename);
 
         let file = File::open(filename)?;
@@ -251,7 +250,7 @@ impl SymbolData {
                 symbols.push((sym.address(), sym.size(), name.to_string()));
             }
         }
-        symbols.sort_unstable_by(|a, b| a.cmp(&b));
+        symbols.sort_unstable();
 
         let mut dynamic_symbols = Vec::new();
         for sym in file.dynamic_symbols() {
@@ -259,8 +258,8 @@ impl SymbolData {
                 dynamic_symbols.push((sym.address(), sym.size(), name.to_string()));
             }
         }
-        dynamic_symbols.sort_unstable_by(|a, b| a.cmp(&b));
-        Ok(SymbolData {
+        dynamic_symbols.sort_unstable();
+        Ok(Self {
             address_loader,
             offset,
             dynamic_symbols,
@@ -318,7 +317,7 @@ impl SymbolData {
         }
 
         // otherwise try getting the function name from the symbols
-        if self.symbols.len() > 0 {
+        if !self.symbols.is_empty() {
             let symbol = match self.symbols.binary_search_by(|sym| sym.0.cmp(&offset)) {
                 Ok(i) => &self.symbols[i],
                 Err(i) => &self.symbols[if i > 0 { i - 1 } else { 0 }],
@@ -328,7 +327,7 @@ impl SymbolData {
             }
         }
 
-        if ret.function.is_none() && self.dynamic_symbols.len() > 0 {
+        if ret.function.is_none() && !self.dynamic_symbols.is_empty() {
             let symbol = match self
                 .dynamic_symbols
                 .binary_search_by(|sym| sym.0.cmp(&offset))

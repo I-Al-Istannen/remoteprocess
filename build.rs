@@ -11,6 +11,7 @@ fn main() {
     };
     let target = env::var("TARGET").unwrap();
 
+    #[allow(clippy::single_match)]
     match env::var("CARGO_CFG_TARGET_OS").unwrap().as_ref() {
         "linux" => {
             // statically link libunwind if compiling for musl, dynamically link otherwise

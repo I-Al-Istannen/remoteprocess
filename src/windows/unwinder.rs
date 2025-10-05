@@ -19,8 +19,8 @@ pub struct Cursor {
 }
 
 impl Unwinder {
-    pub fn new(handle: HANDLE) -> Result<Unwinder, Error> {
-        Ok(Unwinder { handle })
+    pub fn new(handle: HANDLE) -> Result<Self, Error> {
+        Ok(Self { handle })
     }
 
     pub fn cursor(&self, thread: &Thread) -> Result<Cursor, Error> {
@@ -29,7 +29,7 @@ impl Unwinder {
 }
 
 impl Cursor {
-    pub fn new(thread: HANDLE, process: HANDLE) -> Result<Cursor, Error> {
+    pub fn new(thread: HANDLE, process: HANDLE) -> Result<Self, Error> {
         unsafe {
             let mut ctx: Context = std::mem::zeroed();
             ctx.0.ContextFlags = 1048587; // CONTEXT_FULL
@@ -56,7 +56,7 @@ impl Cursor {
                 }
             }
 
-            Ok(Cursor {
+            Ok(Self {
                 ctx,
                 frame,
                 thread,

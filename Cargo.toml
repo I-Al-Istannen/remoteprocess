@@ -45,7 +45,6 @@ default = []
 unwind = []
 
 [lints]
-rust.unsafe_code = { level = "deny", priority = 1 }
 # Lint groups
 rust.deprecated_safe = "warn"
 rust.future_incompatible = "warn"

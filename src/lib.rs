@@ -74,32 +74,32 @@ pub use windows::*;
 #[derive(Debug)]
 pub enum Error {
     NoBinaryForAddress(u64),
-    GoblinError(::goblin::error::Error),
+    GoblinError(goblin::error::Error),
     IOError(std::io::Error),
     Other(String),
     #[cfg(use_libunwind)]
-    LibunwindError(linux::libunwind::Error),
+    LibunwindError(libunwind::Error),
     #[cfg(target_os = "linux")]
     NixError(nix::Error),
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
-            Error::NoBinaryForAddress(addr) => {
+            Self::NoBinaryForAddress(addr) => {
                 write!(
                     f,
                     "No binary found for address 0x{:016x}. Try reloading.",
                     addr
                 )
             }
-            Error::GoblinError(ref e) => e.fmt(f),
-            Error::IOError(ref e) => e.fmt(f),
-            Error::Other(ref e) => write!(f, "{}", e),
+            Self::GoblinError(ref e) => e.fmt(f),
+            Self::IOError(ref e) => e.fmt(f),
+            Self::Other(ref e) => write!(f, "{}", e),
             #[cfg(use_libunwind)]
-            Error::LibunwindError(ref e) => e.fmt(f),
+            Self::LibunwindError(ref e) => e.fmt(f),
             #[cfg(target_os = "linux")]
-            Error::NixError(ref e) => e.fmt(f),
+            Self::NixError(ref e) => e.fmt(f),
         }
     }
 }
@@ -107,40 +107,40 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
-            Error::GoblinError(ref e) => Some(e),
-            Error::IOError(ref e) => Some(e),
+            Self::GoblinError(ref e) => Some(e),
+            Self::IOError(ref e) => Some(e),
             #[cfg(use_libunwind)]
-            Error::LibunwindError(ref e) => Some(e),
+            Self::LibunwindError(ref e) => Some(e),
             #[cfg(target_os = "linux")]
-            Error::NixError(ref e) => Some(e),
+            Self::NixError(ref e) => Some(e),
             _ => None,
         }
     }
 }
 
 impl From<goblin::error::Error> for Error {
-    fn from(err: goblin::error::Error) -> Error {
-        Error::GoblinError(err)
+    fn from(err: goblin::error::Error) -> Self {
+        Self::GoblinError(err)
     }
 }
 
 impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Error {
-        Error::IOError(err)
+    fn from(err: std::io::Error) -> Self {
+        Self::IOError(err)
     }
 }
 
 #[cfg(target_os = "linux")]
 impl From<nix::Error> for Error {
-    fn from(err: nix::Error) -> Error {
-        Error::NixError(err)
+    fn from(err: nix::Error) -> Self {
+        Self::NixError(err)
     }
 }
 
 #[cfg(use_libunwind)]
-impl From<linux::libunwind::Error> for Error {
-    fn from(err: linux::libunwind::Error) -> Error {
-        Error::LibunwindError(err)
+impl From<libunwind::Error> for Error {
+    fn from(err: libunwind::Error) -> Self {
+        Self::LibunwindError(err)
     }
 }
 
@@ -154,8 +154,8 @@ pub struct StackFrame {
 }
 
 impl std::fmt::Display for StackFrame {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let function = self.function.as_ref().map(String::as_str).unwrap_or("?");
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let function = self.function.as_deref().unwrap_or("?");
         if let Some(filename) = self.filename.as_ref() {
             write!(
                 f,
@@ -186,7 +186,7 @@ pub trait ProcessMemory {
 
     /// Copies a structure from another process
     fn copy_struct<T: Copy>(&self, addr: usize) -> Result<T, Error> {
-        let mut data = vec![0; std::mem::size_of::<T>()];
+        let mut data = vec![0; size_of::<T>()];
         self.read(addr, &mut data)?;
         Ok(unsafe { std::ptr::read(data.as_ptr() as *const _) })
     }
@@ -199,8 +199,8 @@ pub trait ProcessMemory {
     /// Copies a series of bytes from another process into a vector of
     /// structures of type T.
     fn copy_vec<T: Copy>(&self, addr: usize, length: usize) -> Result<Vec<T>, Error> {
-        let mut vec = self.copy(addr, length * std::mem::size_of::<T>())?;
-        let capacity = vec.capacity() as usize / std::mem::size_of::<T>() as usize;
+        let mut vec = self.copy(addr, length * size_of::<T>())?;
+        let capacity = vec.capacity() / size_of::<T>();
         let ptr = vec.as_mut_ptr() as *mut T;
         std::mem::forget(vec);
         unsafe { Ok(Vec::from_raw_parts(ptr, capacity, capacity)) }

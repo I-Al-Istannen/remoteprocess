@@ -76,7 +76,7 @@ extern "system" {
 }
 
 impl Process {
-    pub fn new(pid: Pid) -> Result<Process, Error> {
+    pub fn new(pid: Pid) -> Result<Self, Error> {
         // we can't just use try_into_process_handle here because we need some additional permissions
         unsafe {
             let handle = OpenProcess(
@@ -91,7 +91,7 @@ impl Process {
             if handle == (0 as std::os::windows::io::RawHandle) {
                 return Err(Error::from(std::io::Error::last_os_error()));
             }
-            Ok(Process {
+            Ok(Self {
                 pid,
                 handle: handle.into(),
             })
@@ -117,7 +117,7 @@ impl Process {
     }
 
     pub fn lock(&self) -> Result<Lock, Error> {
-        Ok(Lock::new(self.handle.clone())?)
+        Lock::new(self.handle.clone())
     }
 
     pub fn cwd(&self) -> Result<String, Error> {
@@ -168,9 +168,7 @@ impl Process {
             let unicode: PUNICODE_STRING = (&storage as &[u16]) as *const _ as *mut _;
             let chars =
                 std::slice::from_raw_parts((*unicode).Buffer, (*unicode).Length as usize / 2);
-            let mut ret = Vec::new();
-            ret.push(String::from_utf16_lossy(chars));
-            Ok(ret)
+            Ok(vec![String::from_utf16_lossy(chars)])
         }
     }
 
@@ -216,7 +214,7 @@ impl Process {
                     process,
                     0,
                     &mut basic_info as *const _ as *mut _,
-                    std::mem::size_of_val(&basic_info) as ULONG,
+                    size_of_val(&basic_info) as ULONG,
                     &size as *const _ as *mut _,
                 );
                 if retcode == 0 {
@@ -230,8 +228,8 @@ impl Process {
         Ok(crate::filter_child_pids(self.pid, &processes))
     }
     #[cfg(feature = "unwind")]
-    pub fn unwinder(&self) -> Result<unwinder::Unwinder, Error> {
-        unwinder::Unwinder::new(*self.handle)
+    pub fn unwinder(&self) -> Result<Unwinder, Error> {
+        Unwinder::new(*self.handle)
     }
     #[cfg(feature = "unwind")]
     pub fn symbolicator(&self) -> Result<Symbolicator, Error> {
@@ -251,7 +249,7 @@ pub struct Thread {
 }
 
 impl Thread {
-    pub fn new(tid: Tid) -> Result<Thread, Error> {
+    pub fn new(tid: Tid) -> Result<Self, Error> {
         // we can't just use try_into_prcess_handle here because we need some additional permissions
         unsafe {
             let thread = OpenThread(THREAD_ALL_ACCESS, FALSE, tid);
@@ -259,7 +257,7 @@ impl Thread {
                 return Err(Error::from(std::io::Error::last_os_error()));
             }
 
-            Ok(Thread {
+            Ok(Self {
                 thread: thread.into(),
             })
         }
@@ -282,7 +280,7 @@ impl Thread {
                 *self.thread,
                 21,
                 &mut data as *mut _ as *mut VOID,
-                std::mem::size_of::<THREAD_LAST_SYSCALL_INFORMATION>() as u32,
+                size_of::<THREAD_LAST_SYSCALL_INFORMATION>() as u32,
                 NULL as *mut u32,
             );
 
@@ -302,7 +300,7 @@ pub struct Lock {
 }
 
 impl Lock {
-    pub fn new(process: ProcessHandle) -> Result<Lock, Error> {
+    pub fn new(process: ProcessHandle) -> Result<Self, Error> {
         unsafe {
             let ret = NtSuspendProcess(*process);
             if ret != 0 {
@@ -311,7 +309,7 @@ impl Lock {
                 )));
             }
         }
-        Ok(Lock { process })
+        Ok(Self { process })
     }
 }
 
@@ -334,14 +332,14 @@ pub struct ThreadLock {
 }
 
 impl ThreadLock {
-    pub fn new(thread: ProcessHandle) -> Result<ThreadLock, Error> {
+    pub fn new(thread: ProcessHandle) -> Result<Self, Error> {
         unsafe {
             let ret = SuspendThread(*thread);
             if ret.wrapping_add(1) == 0 {
                 return Err(std::io::Error::last_os_error().into());
             }
 
-            Ok(ThreadLock { thread })
+            Ok(Self { thread })
         }
     }
 }

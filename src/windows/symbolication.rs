@@ -19,12 +19,12 @@ pub struct Symbolicator {
 }
 
 impl Symbolicator {
-    pub fn new(handle: HANDLE) -> Result<Symbolicator, Error> {
+    pub fn new(handle: HANDLE) -> Result<Self, Error> {
         unsafe {
             if SymInitializeW(handle, std::ptr::null_mut(), TRUE) == 0 {
                 return Err(Error::from(std::io::Error::last_os_error()));
             };
-            Ok(Symbolicator { handle })
+            Ok(Self { handle })
         }
     }
 
@@ -90,23 +90,23 @@ impl Symbolicator {
             symbol_info.NameLen as usize,
             symbol_info.MaxNameLen as usize - 1,
         );
-        let symbol = std::slice::from_raw_parts(symbol_info.Name.as_ptr() as *const u16, length);
+        let symbol = std::slice::from_raw_parts(symbol_info.Name.as_ptr(), length);
         let symbol = std::ffi::OsString::from_wide(symbol);
-        Some(symbol.to_string_lossy().to_owned().to_string())
+        Some(symbol.to_string_lossy().to_string())
     }
 
     // get the corresponding filename/link
     pub unsafe fn symbol_filename(&self, addr: u64) -> Option<(String, u64)> {
         let mut displacement = 0;
         let mut info = std::mem::zeroed::<IMAGEHLP_LINEW64>();
-        info.SizeOfStruct = std::mem::size_of_val(&info) as u32;
+        info.SizeOfStruct = size_of_val(&info) as u32;
         if SymGetLineFromAddrW64(self.handle, addr, &mut displacement, &mut info) != TRUE {
             return None;
         }
         let filename = std::slice::from_raw_parts(info.FileName, wcslen(info.FileName));
         let filename = std::ffi::OsString::from_wide(filename);
         Some((
-            filename.to_string_lossy().to_owned().to_string(),
+            filename.to_string_lossy().to_string(),
             info.LineNumber.into(),
         ))
     }
@@ -114,7 +114,7 @@ impl Symbolicator {
     // get the corresponding module name
     pub unsafe fn symbol_module(&self, addr: u64) -> Result<String, Error> {
         let mut info = std::mem::zeroed::<IMAGEHLP_MODULEW64>();
-        info.SizeOfStruct = std::mem::size_of_val(&info) as u32;
+        info.SizeOfStruct = size_of_val(&info) as u32;
         if SymGetModuleInfoW64(self.handle, addr, &mut info) != TRUE {
             if GetLastError() == 126 {
                 return Err(Error::NoBinaryForAddress(addr));
@@ -125,7 +125,7 @@ impl Symbolicator {
         let filename = std::slice::from_raw_parts(filename, wcslen(filename));
         let filename = std::ffi::OsString::from_wide(filename);
 
-        Ok(filename.to_string_lossy().to_owned().to_string())
+        Ok(filename.to_string_lossy().to_string())
     }
 }
 
@@ -139,7 +139,7 @@ impl Drop for Symbolicator {
 
 #[repr(C, align(8))]
 struct SymbolBuffer {
-    buffer: [u8; std::mem::size_of::<SYMBOL_INFOW>() + MAX_SYM_NAME * 2],
+    buffer: [u8; size_of::<SYMBOL_INFOW>() + MAX_SYM_NAME * 2],
 }
 
 // missing from winapi-rs =(
