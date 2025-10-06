@@ -127,6 +127,12 @@ impl Symbolicator {
                         }
                     };
 
+                    let obj_base = if elf.header.e_type == goblin::elf::header::ET_DYN {
+                        obj_base
+                    } else {
+                        0
+                    };
+
                     // the map key is the end address of this filename, which lets us do a relatively efficient range
                     // based lookup of the binary
                     self.binaries.insert(
