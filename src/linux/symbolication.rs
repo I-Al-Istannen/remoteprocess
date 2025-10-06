@@ -252,6 +252,9 @@ impl SymbolData {
 
         let mut symbols = Vec::new();
         for sym in file.symbols() {
+            if sym.size() == 0 {
+                continue;
+            }
             if let Ok(name) = sym.name() {
                 symbols.push((sym.address(), sym.size(), name.to_string()));
             }
@@ -260,6 +263,9 @@ impl SymbolData {
 
         let mut dynamic_symbols = Vec::new();
         for sym in file.dynamic_symbols() {
+            if sym.size() == 0 {
+                continue;
+            }
             if let Ok(name) = sym.name() {
                 dynamic_symbols.push((sym.address(), sym.size(), name.to_string()));
             }
