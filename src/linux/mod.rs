@@ -179,6 +179,18 @@ impl Thread {
             ))),
         }
     }
+
+    pub fn thread_name(&self) -> Result<Option<String>, Error> {
+        let mut file = File::open(format!("/proc/{}/comm", self.tid))?;
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)?;
+        // remove trailing newline
+        if buf.ends_with('\n') {
+            buf.pop();
+        }
+
+        Ok(Some(buf))
+    }
 }
 
 fn get_process_tree() -> Result<HashMap<Pid, Pid>, Error> {
