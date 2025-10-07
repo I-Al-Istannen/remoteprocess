@@ -208,6 +208,10 @@ impl Thread {
         Ok(ThreadLock::new(self.tid)?)
     }
 
+    pub fn thread_name(&self) -> Result<Option<String>, Error> {
+        Ok(None)
+    }
+
     pub fn registers(&self) -> Result<x86_thread_state64_t, std::io::Error> {
         unsafe {
             let thread_state = x86_thread_state64_t::new();

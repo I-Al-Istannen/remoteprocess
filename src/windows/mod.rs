@@ -270,6 +270,10 @@ impl Thread {
         unsafe { Ok(GetThreadId(*self.thread)) }
     }
 
+    pub fn thread_name(&self) -> Result<Option<String>, Error> {
+        Ok(None)
+    }
+
     pub fn active(&self) -> Result<bool, Error> {
         // Getting whether a thread is active or not is surprisingly difficult on windows
         // we're getting the syscall the thread is doing here, and then checking against a list

@@ -132,6 +132,10 @@ impl Thread {
     pub fn lock(&self) -> Result<Arc<ProcessLock>, Error> {
         process_lock(self.pid, &self.lock)
     }
+
+    pub fn thread_name(&self) -> Result<Option<String>, Error> {
+        Ok(None)
+    }
 }
 
 impl ProcessMemory for Process {
