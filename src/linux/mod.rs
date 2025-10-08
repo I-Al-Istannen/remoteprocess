@@ -196,6 +196,19 @@ impl Thread {
         }
     }
 
+    pub fn active_status(&self) -> Result<u8, Error> {
+        let mut file = File::open(format!("/proc/{}/stat", self.tid))?;
+        let mut buf = [0u8; 512];
+        let _ = file.read(&mut buf)?;
+        match get_active_status(&buf) {
+            Some(stat) => Ok(stat),
+            None => Err(Error::Other(format!(
+                "Failed to parse /proc/{}/stat",
+                self.tid
+            ))),
+        }
+    }
+
     pub fn thread_name(&self) -> Result<Option<String>, Error> {
         let mut file = File::open(format!("/proc/{}/comm", self.tid))?;
         let mut buf = String::new();
