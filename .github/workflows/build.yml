@@ -36,8 +36,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Dependencies
-      run: sudo apt install libunwind-dev
       if: runner.os == 'Linux'
+      run: |
+        sudo apt install libunwind-dev liblzma-dev -y
+        echo 'RUSTFLAGS=-C link-arg=-llzma' >> $GITHUB_ENV
+
     - name: Build
       run: cargo build --verbose --examples --features unwind
     - name: Run tests
